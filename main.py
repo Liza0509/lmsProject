@@ -7,7 +7,7 @@ from PyQt6 import uic  # Импортируем uic
 class FirstForm(QMainWindow):
     def __init__(self):
         super().__init__()
-        uic.loadUi('войтиКак.ui', self)  # Загружаем дизайн
+        uic.loadUi('войти_как.ui', self)  # Загружаем дизайн
         self.mainChild.clicked.connect(self.openChildRegistr)
         self.mainParent.clicked.connect(self.openParentRegistr)
 
@@ -25,12 +25,12 @@ class FirstForm(QMainWindow):
 class ChildRegistr(QMainWindow):
     def __init__(self):
         super().__init__()
-        uic.loadUi('входДети.ui', self)  # Загружаем дизайн
+        uic.loadUi('вход_дети.ui', self)  # Загружаем дизайн
 
 class ParentRegistr(QMainWindow):
     def __init__(self):
         super().__init__()
-        uic.loadUi('регистрацияРодитель.ui', self)  # Загружаем дизайн
+        uic.loadUi('регистрация_родитель.ui', self)  # Загружаем дизайн
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
