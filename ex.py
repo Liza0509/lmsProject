@@ -1,146 +1,95 @@
-import sys
-import sqlite3
-from PyQt6 import QtCore, QtGui, QtWidgets
-from list import TaskListApp
-
-class Ui_MainWindow(object):
-    def __init__(self, ):
+class TaskListApp(QtWidgets.QWidget):
+    def __init__(self, user_login):
         super().__init__()
+        self.user_login = user_login  # Уникальный логин пользователя
+        self.setWindowTitle("Список задач")
+        self.setGeometry(100, 100, 400, 400)
+        self.layout = QtWidgets.QVBoxLayout(self)
 
-    def setupUi(self, MainWindow):
-        MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(800, 600)
-        self.centralwidget = QtWidgets.QWidget(parent=MainWindow)
-        self.centralwidget.setObjectName("centralwidget")
-        self.verticalLayoutWidget = QtWidgets.QWidget(parent=self.centralwidget)
-        self.verticalLayoutWidget.setGeometry(QtCore.QRect(290, 160, 211, 181))
-        self.verticalLayoutWidget.setObjectName("verticalLayoutWidget")
-        self.verticalLayout = QtWidgets.QVBoxLayout(self.verticalLayoutWidget)
-        self.verticalLayout.setContentsMargins(0, 0, 0, 0)
-        self.verticalLayout.setObjectName("verticalLayout")
-        self.verticalLayout_2 = QtWidgets.QVBoxLayout()
-        self.verticalLayout_2.setObjectName("verticalLayout_2")
-        self.loginParent = QtWidgets.QLineEdit(parent=self.verticalLayoutWidget)
-        self.loginParent.setObjectName("loginParent")
-        self.verticalLayout_2.addWidget(self.loginParent)
-        self.passwordParent = QtWidgets.QLineEdit(parent=self.verticalLayoutWidget)
-        self.passwordParent.setObjectName("passwordParent")
-        self.passwordParent.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)  # Скрыть ввод пароля
-        self.verticalLayout_2.addWidget(self.passwordParent)
-        self.lineEdit_3 = QtWidgets.QLineEdit(parent=self.verticalLayoutWidget)
-        self.lineEdit_3.setObjectName("lineEdit_3")
-        self.lineEdit_3.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)  # Скрыть ввод подтверждения пароля
-        self.verticalLayout_2.addWidget(self.lineEdit_3)
-        self.verticalLayout_3 = QtWidgets.QVBoxLayout()
-        self.verticalLayout_3.setObjectName("verticalLayout_3")
-        self.registrParent = QtWidgets.QPushButton(parent=self.verticalLayoutWidget)
-        self.registrParent.setObjectName("registrParent")
-        self.registrParent.clicked.connect(self.add_user)  # Подключаем обработчик
-        self.verticalLayout_3.addWidget(self.registrParent)
-        self.vhodParent = QtWidgets.QPushButton(parent=self.verticalLayoutWidget)
-        self.vhodParent.setObjectName("vhodParent")
-        self.vhodParent.clicked.connect(self.open_login_window)  # Подключаем обработчик для кнопки "вход"
-        self.verticalLayout_3.addWidget(self.vhodParent)
-        self.verticalLayout_2.addLayout(self.verticalLayout_3)
-        self.verticalLayout.addLayout(self.verticalLayout_2)
-        MainWindow.setCentralWidget(self.centralwidget)
-        self.menubar = QtWidgets.QMenuBar(parent=MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 800, 26))
-        self.menubar.setObjectName("menubar")
-        MainWindow.setMenuBar(self.menubar)
-        self.statusbar = QtWidgets.QStatusBar(parent=MainWindow)
-        self.statusbar.setObjectName("statusbar")
-        MainWindow.setStatusBar(self.statusbar)
-        self.retranslateUi(MainWindow)
-        QtCore.QMetaObject.connectSlotsByName(MainWindow)
+        # Кнопка для добавления новой задачи
+        self.addTaskButton = QtWidgets.QPushButton("Добавить задачу", self)
+        self.addTaskButton.clicked.connect(self.open_task_input_dialog)
+        self.layout.addWidget(self.addTaskButton)
+
+        # Список задач
+        self.taskListWidget = QtWidgets.QListWidget(self)
+        self.layout.addWidget(self.taskListWidget)
+
         # Подключение к базе данных
-        self.connection = sqlite3.connect('users.db')
+        self.connection = sqlite3.connect('tasks.db')
         self.cursor = self.connection.cursor()
         self.cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
+        CREATE TABLE IF NOT EXISTS tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            login TEXT NOT NULL UNIQUE,
-            password TEXT NOT NULL
+            user_login TEXT NOT NULL,
+            task_name TEXT NOT NULL,
+            urgency TEXT NOT NULL,
+            reward TEXT NOT NULL,
+            deadline TEXT NOT NULL
         )
         ''')
         self.connection.commit()
+        self.load_tasks()
 
-    def retranslateUi(self, MainWindow):
-        _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "Регистрация"))
-        self.loginParent.setPlaceholderText(_translate("MainWindow", "логин"))
-        self.passwordParent.setPlaceholderText(_translate("MainWindow", "пароль"))
-        self.lineEdit_3.setPlaceholderText(_translate("MainWindow", "подтвердите пароль"))
-        self.registrParent.setText(_translate("MainWindow", "регистрация"))
-        self.vhodParent.setText(_translate("MainWindow", "вход"))
+    def load_tasks(self):
+        self.cursor.execute('SELECT id, task_name, urgency, reward, deadline FROM tasks WHERE user_login=?',
+                            (self.user_login,))
+        tasks = self.cursor.fetchall()
+        for task in tasks:
+            self.display_task(Task(*task))  # Обновленная функция
 
-    def add_user(self):
-        login = self.loginParent.text()
-        password = self.passwordParent.text()
-        confirm_password = self.lineEdit_3.text()
-        if login and password and password == confirm_password:
-            # Проверка на существование пользователя
-            self.cursor.execute('SELECT * FROM users WHERE login=?', (login,))
-            if self.cursor.fetchone():  # Если пользователь найден
-                QtWidgets.QMessageBox.warning(None, 'Ошибка', 'Логин уже зарегистрирован!')
-                return
-            # Добавление нового пользователя
-            self.cursor.execute('INSERT INTO users (login, password) VALUES (?, ?)', (login, password))
-            self.connection.commit()
-            QtWidgets.QMessageBox.information(None, 'Успех', 'Пользователь успешно зарегистрирован!')
+    def open_task_input_dialog(self):
+        dialog = TaskInputDialog()
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            task_data = dialog.get_task_data()
+            self.add_task(*task_data)
+
+    def add_task(self, name, urgency, reward, deadline):
+        if name:  # Проверка, что название задачи не пустое
+            task = Task(name, urgency, reward, deadline)
+            self.display_task(task)
+            self.save_task_to_db(task)
+
+    def display_task(self, task):
+        item = QtWidgets.QListWidgetItem()
+        item.setText(f"{task.name} - Награда: {task.reward} - Дедлайн: {task.deadline}")
+        # Установка цвета в зависимости от срочности
+        color_square = QtWidgets.QWidget()
+        color_square.setFixedSize(15, 15)
+        if task.urgency == "Срочно":
+            color_square.setStyleSheet("background-color: red;")
+        elif task.urgency == "Желательно":
+            color_square.setStyleSheet("background-color: yellow;")
         else:
-            QtWidgets.QMessageBox.warning(None, 'Ошибка', 'Пожалуйста, проверьте ввод данных!')
+            color_square.setStyleSheet("background-color: green;")
 
-    def open_login_window(self):
-        self.login_dialog = LoginDialog(self.connection)
-        self.login_dialog.exec()
+        # Компоновка для ячейки
+        item_layout = QtWidgets.QHBoxLayout()
+        item_layout.addWidget(color_square)
+        item_layout.addWidget(QtWidgets.QLabel(f"{task.name} - Награда: {task.reward} - Дедлайн: {task.deadline}"))
+
+        # Кнопка удаления задачи
+        delete_button = QtWidgets.QPushButton("Удалить", self)
+        delete_button.clicked.connect(lambda: self.delete_task(task.id, item))
+        item_layout.addWidget(delete_button)
+
+        item.setSizeHint(item_layout.sizeHint())
+        self.taskListWidget.addItem(item)
+        self.taskListWidget.setItemWidget(item, color_square)
+
+    def save_task_to_db(self, task):
+        self.cursor.execute(
+            'INSERT INTO tasks (user_login, task_name, urgency, reward, deadline) VALUES (?, ?, ?, ?, ?)',
+            (self.user_login, task.name, task.urgency, task.reward, task.deadline))
+        self.connection.commit()
+
+    def delete_task(self, task_id, item):
+        # Удаление задачи из базы данных
+        self.cursor.execute('DELETE FROM tasks WHERE id=?', (task_id,))
+        self.connection.commit()
+
+        # Удаление задачи из интерфейса (списка)
+        self.taskListWidget.takeItem(self.taskListWidget.row(item))
 
     def closeEvent(self, event):
-        self.connection.close()  # Закрыть соединение с базой данных при закрытии окна
-
-
-class LoginDialog(QtWidgets.QDialog):
-    def __init__(self, connection):
-        super().__init__()
-
-        self.connection = connection
-        self.setWindowTitle("Вход")
-        self.setGeometry(300, 300, 300, 150)
-        self.layout = QtWidgets.QVBoxLayout()
-        self.loginInput = QtWidgets.QLineEdit(self)
-        self.loginInput.setPlaceholderText("Логин")
-        self.layout.addWidget(self.loginInput)
-        self.passwordInput = QtWidgets.QLineEdit(self)
-        self.passwordInput.setPlaceholderText("Пароль")
-        self.passwordInput.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
-        self.layout.addWidget(self.passwordInput)
-        self.loginButton = QtWidgets.QPushButton("Войти", self)
-        self.loginButton.clicked.connect(self.check_login)
-        self.layout.addWidget(self.loginButton)
-        self.setLayout(self.layout)
-
-    def check_login(self):
-        login = self.loginInput.text()
-        password = self.passwordInput.text()
-        cursor = self.connection.cursor()
-        cursor.execute('SELECT * FROM users WHERE login=? AND password=?', (login, password))
-        user = cursor.fetchone()
-        if user:
-            print(login)
-            #QtWidgets.QMessageBox.information(self, 'Успех', 'Вход выполнен успешно!')
-            #self.accept()  # Закрывает диалоговое окно
-            self.window = TaskListApp(login)
-            self.window.show()
-
-
-        else:
-            QtWidgets.QMessageBox.warning(self, 'Ошибка', 'Неверный логин или пароль!')
-
-
-if __name__ == '__main__':
-    app = QtWidgets.QApplication(sys.argv)
-    MainWindow = QtWidgets.QMainWindow()
-    ui = Ui_MainWindow()
-    ui.setupUi(MainWindow)
-    MainWindow.show()
-    sys.exit(app.exec())
+        self.connection.close()
